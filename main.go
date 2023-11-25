@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
-
 	"github.com/go-chi/chi/v5"
 )
 
@@ -25,29 +23,11 @@ func main() {
 		fileserverhits: 0,
 	}
 	r := chi.NewRouter()
-	mux := http.NewServeMux()
-	corsMux := middlewareCors(mux)
+	corsMux := middlewareCors(r)
 	r.Get("/app/*", config.middlewareMetrics(http.StripPrefix("/app", http.FileServer(http.Dir(".")))).(http.HandlerFunc))
 	r.Get("/app", config.middlewareMetrics(http.StripPrefix("/app", http.FileServer(http.Dir(".")))).(http.HandlerFunc))
-	r.Get("/healthz", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Set("Content-Type", "text/plain; charset=utf-8")
-		r.Header.Set("Cache-Control", "no-cache")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	}))
-	r.Get("/metrics", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Set("Content-Type", "text/plain; charset=utf-8")
-		r.Header.Set("Cache-Control", "no-cache")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hits: " + fmt.Sprint(config.fileserverhits)))
-	}))
-	r.Get("/reset", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Set("Content-Type", "text/plain; charset=utf-8")
-		r.Header.Set("Cache-Control", "no-cache")
-		w.WriteHeader(http.StatusOK)
-		config.fileserverhits = 0
-		w.Write([]byte("OK"))
-	}))
+	r.Mount("/api", createApiRouter(&config))
+	r.Mount("/admin", createAdminRouter(&config))
 	server := http.Server{
 		Handler: corsMux,
 		Addr:    ":8080",
